@@ -29,12 +29,13 @@ fun ScanningScreen(navController: NavController) {
         val bitmap = ImageHolder.bitmap
         if (bitmap == null) { navController.popBackStack(); return@LaunchedEffect }
         RetrofitClient.validateBaseUrl()?.let { errorMessage = it; return@LaunchedEffect }
+
         val base64Image = try {
             val scaled = scaleBitmap(bitmap, 1024)
             val baos = ByteArrayOutputStream()
             scaled.compress(Bitmap.CompressFormat.JPEG, 75, baos)
             Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
-        } catch (e: Exception) { errorMessage = "Image error: ${'$'}{e.message}"; return@LaunchedEffect }
+        } catch (e: Exception) { errorMessage = "Image error: " + e.message; return@LaunchedEffect }
 
         var attempt = 0; var lastErr: String? = null
         while (attempt < 2) {
@@ -53,14 +54,14 @@ fun ScanningScreen(navController: NavController) {
                     val errBody = resp.errorBody()?.string() ?: ""
                     lastErr = when (resp.code()) {
                         503 -> "Backend is waking up (Render free tier). Try again in ~20 seconds."
-                        404 -> "Endpoint not found (404). Confirm server.js has /api/identify and the URL path is correct."
-                        else -> "Server error ${'$'}{resp.code()}: ${'$'}{errBody.take(160)}"
+                        404 -> "Endpoint not found (404). Confirm server.js has /api/identify."
+                        else -> "Server error " + resp.code() + ": " + errBody.take(200)
                     }
                 }
             } catch (e: Exception) {
                 val msg = e.message ?: e.javaClass.simpleName
                 lastErr = if (msg.contains("Android internal error"))
-                    "TLS error: backend hostname is invalid (likely an underscore). Use a Render URL with hyphens only."
+                    "TLS error: backend hostname invalid (underscore). Use hyphens only."
                 else msg
                 if (attempt < 2) delay(2500)
             }
